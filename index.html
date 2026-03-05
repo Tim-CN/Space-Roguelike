@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星际迷航 · 太空生存Roguelike</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        body {
+            background: #0a0f1e;
+            color: #b7e1fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 16px;
+        }
+        .game-container {
+            max-width: 1000px;
+            width: 100%;
+            background: #1a1f2f;
+            border: 2px solid #3e5a7a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 0 20px #1e3f5f;
+        }
+        .view {
+            display: none;
+        }
+        .active-view {
+            display: block;
+        }
+        h1, h2, h3 {
+            color: #ffd966;
+            text-align: center;
+            margin-top: 0;
+            border-bottom: 1px solid #3e5a7a;
+            padding-bottom: 8px;
+        }
+        button {
+            background: #2a3f5e;
+            color: #e0e0e0;
+            border: 1px solid #5f8ab0;
+            border-radius: 6px;
+            padding: 8px 14px;
+            margin: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        button:hover {
+            background: #3e5f82;
+            border-color: #ffb347;
+            color: white;
+        }
+        button.danger {
+            background: #5e2e3e;
+            border-color: #b05a5a;
+        }
+        button.danger:hover {
+            background: #8f4a4a;
+        }
+        .status-panel {
+            background: #0f1a24;
+            border: 1px solid #2c4b63;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .stat-item {
+            background: #1e3040;
+            border-radius: 6px;
+            padding: 8px 12px;
+            text-align: center;
+        }
+        .stat-label {
+            color: #9bb8da;
+            font-size: 14px;
+        }
+        .stat-value {
+            font-size: 22px;
+            font-weight: bold;
+            color: #f0e68c;
+        }
+        .system-levels {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            background: #0a121c;
+            border-radius: 20px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .system-badge {
+            background: #1d3347;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border-left: 3px solid #ffb347;
+        }
+        .log-area {
+            background: #0c0f17;
+            border: 1px solid #3e5a7a;
+            border-radius: 8px;
+            height: 150px;
+            overflow-y: scroll;
+            padding: 10px;
+            font-size: 14px;
+            margin: 15px 0;
+            color: #afc9e0;
+            white-space: pre-wrap;
+        }
+        .combat-log {
+            height: 120px;
+        }
+        .button-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0 10px;
+        }
+        .enemy-status {
+            background: #2a1a1a;
+            border: 2px solid #b34a4a;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .enemy-name {
+            font-size: 24px;
+            color: #ffaaaa;
+        }
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: space-between;
+        }
+        .save-item {
+            background: #15232e;
+            border: 1px solid #38658f;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .save-actions button {
+            margin-left: 6px;
+            padding: 4px 10px;
+            font-size: 14px;
+        }
+        input {
+            background: #1d3042;
+            border: 1px solid #4f7da3;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            width: 200px;
+            font-family: inherit;
+        }
+        hr {
+            border: 1px solid #2c4b63;
+        }
+        .title {
+            font-size: 32px;
+            text-shadow: 0 0 8px cyan;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container" id="gameContainer">
+    <!-- 主菜单视图 -->
+    <div id="menuView" class="view active-view">
+        <h1 class="title">✧ 星际迷航 ✧</h1>
+        <h3>Space Roguelike</h3>
+        <div class="button-panel" style="flex-direction: column; max-width: 300px; margin: 40px auto;">
+            <button id="btnNewGame">🚀 新游戏</button>
+            <button id="btnLoadGame">📂 加载存档</button>
+            <button id="btnManageSaves">📁 存档管理</button>
+            <button id="btnExit">⏻ 退出</button>
+        </div>
+    </div>
+
+    <!-- 存档管理视图 -->
+    <div id="saveManagementView" class="view">
+        <h2>📁 存档管理</h2>
+        <div id="savesList" style="margin: 20px 0;"></div>
+        <div class="button-panel">
+            <button id="btnNewSave">➕ 新建存档</button>
+            <button id="btnBackFromManage">🔙 返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 游戏主视图 -->
+    <div id="gameView" class="view">
+        <h2>🚀 飞船控制中心 <span style="font-size: 16px;" id="gameDayDisplay">第1天</span></h2>
+        <div class="status-panel" id="gameStatusPanel">
+            <!-- 动态JS填充 -->
+        </div>
+        <div class="system-levels" id="systemLevelsDisplay"></div>
+
+        <div class="log-area" id="gameLog">=== 航行日志 ===</div>
+
+        <div class="button-panel" id="gameActionPanel">
+            <button id="actionExplore">🌌 探索</button>
+            <button id="actionRepair">🔧 修理</button>
+            <button id="actionUpgrade">⚡ 升级系统</button>
+            <button id="actionStatus">📊 状态</button>
+            <button id="actionRest">😴 休息</button>
+            <button id="actionLog">📜 查看日志</button>
+            <button id="actionSave">💾 保存</button>
+            <button id="actionOpenFolder">📂 存档文件夹</button>
+            <button id="actionExitToMenu">🔙 返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 战斗视图 -->
+    <div id="combatView" class="view">
+        <h2>⚔️ 战斗模式</h2>
+        <div class="enemy-status" id="enemyStatus">
+            <div><span class="enemy-name" id="enemyName">敌人</span> (Lv?)</div>
+            <div>❤️ HP: <span id="enemyHp">0</span>/<span id="enemyMaxHp">0</span>  |  🛡️ 护盾: <span id="enemyShield">0</span>/<span id="enemyMaxShield">0</span></div>
+            <div>⚔️ 武器: <span id="enemyWeapon">等离子炮</span></div>
+        </div>
+        <div class="flex-row">
+            <div style="flex: 1; background:#1d2d3a; padding:10px; border-radius:8px;">
+                <div>🚀 我方飞船</div>
+                <div>❤️ <span id="playerCombatHp">0</span>/<span id="playerCombatMaxHp">0</span></div>
+                <div>🛡️ <span id="playerCombatShield">0</span>/<span id="playerCombatMaxShield">0</span></div>
+                <div>⚡ <span id="playerCombatEnergy">0</span>/<span id="playerCombatMaxEnergy">0</span></div>
+            </div>
+            <div style="flex: 1; background:#1d2d3a; padding:10px; border-radius:8px;" id="combatMessages">
+                <div>战斗信息</div>
+                <div class="log-area combat-log" id="combatLogArea">战斗开始！</div>
+            </div>
+        </div>
+        <div class="button-panel" id="combatActionPanel">
+            <button id="combatAttack">⚔️ 攻击</button>
+            <button id="combatDefend">🛡️ 防御</button>
+            <button id="combatEscape">🚀 逃跑</button>
+            <button id="combatSkill">✨ 技能</button>
+        </div>
+        <button id="combatBack" style="display:block; margin:15px auto;" disabled>战斗中不可返回</button>
+    </div>
+
+    <!-- 升级菜单弹出层 (内嵌简易) -->
+    <div id="upgradeOverlay" style="display:none; position: fixed; top:30%; left:50%; transform:translate(-50%, -30%); background:#1f2e40; border:3px solid #ffb347; padding:25px; z-index:100; border-radius:16px;">
+        <h3>🔧 升级系统</h3>
+        <div id="upgradeOptions"></div>
+        <button id="closeUpgrade">关闭</button>
+    </div>
+</div>
+
+<script>
+(function() {
+    // ==================== 常量 ====================
+    const UPGRADE_BASE_COST = 30;
+    const REPAIR_COST = 20;
+    const REPAIR_AMOUNT = 30;
+    const REST_RECOVERY = 30;
+    const EXPLORATION_BASE_COST = 10;
+    const ENERGY_RECOVERY = 5;
+    const DODGE_CHANCE_PER_LEVEL = 0.05;
+    const CRIT_CHANCE_PER_LEVEL = 0.05;
+    const CRIT_DAMAGE_MULTIPLIER = 1.5;
+    const ESCAPE_BASE_CHANCE = 0.3;
+    const ESCAPE_CHANCE_PER_LEVEL = 0.1;
+
+    const SystemType = { ENERGY: 'energy', SHIELD: 'shield', WEAPON: 'weapon', ENGINE: 'engine' };
+    const SYSTEM_NAMES = { [SystemType.ENERGY]: '能源', [SystemType.SHIELD]: '护盾', [SystemType.WEAPON]: '武器', [SystemType.ENGINE]: '引擎' };
+
+    // ==================== 日志 ====================
+    class GameLogger {
+        constructor() { this.logs = []; }
+        addLog(msg) {
+            const timestamp = new Date().toLocaleTimeString();
+            const line = `[${timestamp}] ${msg}`;
+            this.logs.push(line);
+            if (this.logs.length > 50) this.logs.shift();
+            this.updateUI();
+        }
+        getRecent() { return this.logs.slice(-15).join('\n'); }
+        updateUI() {
+            const el = document.getElementById('gameLog');
+            if (el) el.innerText = this.getRecent() || '=== 航行日志 ===';
+            const combatEl = document.getElementById('combatLogArea');
+            if (combatEl) combatEl.innerText = this.logs.slice(-5).join('\n') || '战斗开始';
+        }
+    }
+    const logger = new GameLogger();
+
+    // ==================== 存档管理 (localStorage) ====================
+    const STORAGE_SAVES_KEY = 'spaceship_saves_list';
+    function getSavesList() {
+        const raw = localStorage.getItem(STORAGE_SAVES_KEY);
+        return raw ? JSON.parse(raw) : []; // [{ name, days, enemies, resources }]
+    }
+    function updateSavesList(list) {
+        localStorage.setItem(STORAGE_SAVES_KEY, JSON.stringify(list));
+    }
+
+    function createNewSave(saveName) {
+        const list = getSavesList();
+        if (!saveName) {
+            let i = 1;
+            while (list.some(s => s.name === `save${i}`)) i++;
+            saveName = `save${i}`;
+        } else {
+            if (list.some(s => s.name === saveName)) {
+                let counter = 1;
+                let newName;
+                do { newName = `${saveName}_${counter++}`; } while (list.some(s => s.name === newName));
+                saveName = newName;
+            }
+        }
+        list.push({ name: saveName, days_survived: 0, enemies_defeated: 0, resources_collected: 0 });
+        updateSavesList(list);
+        // 初始化存档数据
+        const defaultData = {
+            name: '星际先锋号', max_hp:100, hp:100, max_shield:50, shield:50, max_energy:100, energy:100, resources:50,
+            energy_level:1, shield_level:1, weapon_level:1, engine_level:1,
+            days_survived:0, enemies_defeated:0, resources_collected:0, achievements:[]
+        };
+        saveGameData(saveName, defaultData);
+        return saveName;
+    }
+
+    function saveGameData(saveName, data) {
+        localStorage.setItem(`save_${saveName}`, JSON.stringify(data));
+        // 更新列表摘要
+        const list = getSavesList();
+        const idx = list.findIndex(s => s.name === saveName);
+        if (idx !== -1) {
+            list[idx] = { name: saveName, days_survived: data.days_survived || 0, enemies_defeated: data.enemies_defeated || 0, resources_collected: data.resources_collected || 0 };
+        } else {
+            list.push({ name: saveName, days_survived: data.days_survived || 0, enemies_defeated: data.enemies_defeated || 0, resources_collected: data.resources_collected || 0 });
+        }
+        updateSavesList(list);
+    }
+
+    function loadGameData(saveName) {
+        const raw = localStorage.getItem(`save_${saveName}`);
+        return raw ? JSON.parse(raw) : null;
+    }
+
+    function deleteSave(saveName) {
+        localStorage.removeItem(`save_${saveName}`);
+        const list = getSavesList().filter(s => s.name !== saveName);
+        updateSavesList(list);
+    }
+
+    function renameSave(oldName, newName) {
+        if (!newName || oldName === newName) return false;
+        const list = getSavesList();
+        if (list.some(s => s.name === newName)) return false;
+        const data = loadGameData(oldName);
+        if (!data) return false;
+        saveGameData(newName, data);
+        deleteSave(oldName);
+        return true;
+    }
+
+    // ==================== 敌人类 ====================
+    class Enemy {
+        constructor(difficulty) {
+            const types = ["⚔️ 太空海盗", "👾 异形生物", "🤖 失控AI", "🚀 敌对飞船"];
+            this.name = types[Math.floor(Math.random() * types.length)];
+            this.max_hp = 50 + difficulty * 10;
+            this.hp = this.max_hp;
+            this.max_shield = 20 + difficulty * 5;
+            this.shield = this.max_shield;
+            this.attack_power = 10 + difficulty * 2;
+            this.weapon = ["等离子炮", "激光炮", "导弹", "中子光束"][Math.floor(Math.random()*4)];
+            this.ai_type = ["aggressive","defensive","balanced"][Math.floor(Math.random()*3)];
+            this.special_cooldown = 0;
+            this.is_stunned = false;
+        }
+        attack(target) {
+            let damage = this.attack_power + Math.floor(Math.random()*5) - 2;
+            if (Math.random() < target.dodgeChance) {
+                logger.addLog(`⚡ 闪避！${target.name} 躲开了 ${this.name} 的攻击！`);
+                return;
+            }
+            if (target.is_defending) {
+                damage = Math.floor(damage * 0.5);
+                logger.addLog(`🛡️ ${target.name} 防御模式，伤害减半`);
+            }
+            this._dealDamage(target, damage);
+        }
+        useSpecial(target) {
+            if (this.name.startsWith("⚔️")) { // 海盗恢复护盾
+                let rec = 15;
+                this.shield = Math.min(this.max_shield, this.shield + rec);
+                logger.addLog(`⚡ ${this.name} 恢复护盾 ${rec}`);
+                this.special_cooldown = 3;
+            } else if (this.name.startsWith("👾")) {
+                let damage = this.attack_power * 2;
+                this._dealDamage(target, damage);
+                this.special_cooldown = 3;
+            } else if (this.name.startsWith("🤖")) {
+                if (Math.random() < 0.5) {
+                    target.is_stunned = true;
+                    logger.addLog(`⚡ ${this.name} 电子干扰，你的飞船被麻痹！`);
+                } else {
+                    logger.addLog(`⚡ ${this.name} 干扰失败`);
+                }
+                this.special_cooldown = 2;
+            } else if (this.name.startsWith("🚀")) {
+                let damage = Math.floor(this.attack_power * 1.5);
+                this._dealDamage(target, damage);
+                this.special_cooldown = 2;
+            }
+        }
+        _dealDamage(target, damage) {
+            if (target.shield > 0) {
+                let shieldDamage = Math.min(target.shield, damage);
+                target.shield -= shieldDamage;
+                damage -= shieldDamage;
+                logger.addLog(`💥 ${this.name} 击中护盾 -${shieldDamage}`);
+            }
+            if (damage > 0) {
+                target.hp -= damage;
+                logger.addLog(`💢 ${this.name} 对船体造成 ${damage} 伤害`);
+            }
+        }
+        enemyTurn(player) {
+            if (this.special_cooldown > 0) this.special_cooldown--;
+            let useSpecial = false;
+            if (this.ai_type === 'aggressive' && this.shield < this.max_shield*0.3 && this.special_cooldown===0) useSpecial = true;
+            else if (this.ai_type === 'defensive' && this.shield < this.max_shield*0.5 && this.special_cooldown===0) useSpecial = true;
+            else if (this.ai_type === 'balanced' && (this.hp<this.max_hp*0.3||this.shield<this.max_shield*0.3) && this.special_cooldown===0) useSpecial = true;
+            if (useSpecial) this.useSpecial(player);
+            else this.attack(player);
+        }
+    }
+
+    // ==================== 玩家飞船 ====================
+    class Spaceship {
+        constructor(saveName, data = null) {
+            this.saveName = saveName;
+            if (data) this.fromDict(data);
+            else {
+                this.name = "星际先锋号";
+                this.max_hp = 100; this.hp = 100;
+                this.max_shield = 50; this.shield = 50;
+                this.max_energy = 100; this.energy = 100;
+                this.resources = 50;
+                this.energy_level = 1; this.shield_level = 1; this.weapon_level = 1; this.engine_level = 1;
+                this.days_survived = 0; this.enemies_defeated = 0; this.resources_collected = 0; this.achievements = [];
+            }
+            this.is_defending = false;
+            this.is_stunned = false;
+        }
+        get dodgeChance() { return this.engine_level * DODGE_CHANCE_PER_LEVEL; }
+        get critChance() { return 0.1 + this.weapon_level * CRIT_CHANCE_PER_LEVEL; }
+        get attackDamage() { return 10 + this.weapon_level * 2; }
+
+        repair() {
+            if (this.resources >= REPAIR_COST) {
+                if (this.hp < this.max_hp) {
+                    this.resources -= REPAIR_COST;
+                    this.hp = Math.min(this.max_hp, this.hp + REPAIR_AMOUNT);
+                    logger.addLog(`✓ 飞船修复 +${REPAIR_AMOUNT} HP`);
+                } else logger.addLog(`✗ 结构完好，无需修理`);
+            } else logger.addLog(`✗ 资源不足，修理需要 ${REPAIR_COST}`);
+        }
+        upgrade(system) {
+            let levelAttr = system + '_level';
+            let current = this[levelAttr];
+            let cost = UPGRADE_BASE_COST * current;
+            if (this.resources >= cost) {
+                this.resources -= cost;
+                this[levelAttr] = current + 1;
+                logger.addLog(`✓ ${SYSTEM_NAMES[system]} 升级 Lv.${this[levelAttr]}`);
+                if (system === SystemType.ENERGY) { this.max_energy += 20; this.energy = this.max_energy; }
+                else if (system === SystemType.SHIELD) { this.max_shield += 20; this.shield = this.max_shield; }
+                else if (system === SystemType.WEAPON) logger.addLog(`  武器伤害/暴击提升`);
+                else if (system === SystemType.ENGINE) logger.addLog(`  闪避提升，探索能耗降低`);
+                this.checkAchievements();
+            } else logger.addLog(`✗ 升级需要 ${cost} 资源`);
+        }
+        rest() {
+            this.energy = Math.min(this.max_energy, this.energy + REST_RECOVERY);
+            logger.addLog(`✓ 休息恢复 ${REST_RECOVERY} 能源`);
+            if (Math.random() < 0.3) {
+                logger.addLog(`⚠️ 休息时被敌人发现！`);
+                return true;
+            }
+            return false;
+        }
+        explore() {
+            let cost = Math.max(5, EXPLORATION_BASE_COST - this.engine_level);
+            if (this.energy < cost) { logger.addLog(`✗ 能源不足，无法探索`); return false; }
+            this.energy -= cost;
+            logger.addLog(`⚡ 探索消耗 ${cost} 能源`);
+            let r = Math.random();
+            if (r < 0.4) {
+                let found = 10 + Math.floor(Math.random() * 21);
+                this.resources += found; this.resources_collected += found;
+                logger.addLog(`✓ 发现资源 +${found}`);
+            } else if (r < 0.7) {
+                let found = 10 + Math.floor(Math.random() * 11);
+                this.energy = Math.min(this.max_energy, this.energy + found);
+                logger.addLog(`✓ 收集能源 +${found}`);
+            } else {
+                logger.addLog(`⚠️ 遭遇敌人！`);
+                return true;
+            }
+            return false;
+        }
+        checkAchievements() {
+            if (this.days_survived >= 10 && !this.achievements.includes('生存专家')) { this.achievements.push('生存专家'); logger.addLog(`🏆 成就：生存专家`); }
+            if (this.enemies_defeated >= 5 && !this.achievements.includes('猎人')) { this.achievements.push('猎人'); logger.addLog(`🏆 成就：猎人`); }
+            if (this.resources_collected >= 200 && !this.achievements.includes('资源大亨')) { this.achievements.push('资源大亨'); logger.addLog(`🏆 成就：资源大亨`); }
+            if (this.energy_level>=3 && this.shield_level>=3 && this.weapon_level>=3 && this.engine_level>=3 && !this.achievements.includes('全能舰长')) {
+                this.achievements.push('全能舰长'); logger.addLog(`🏆 成就：全能舰长`); }
+        }
+        toDict() {
+            return { name:this.name, max_hp:this.max_hp, hp:this.hp, max_shield:this.max_shield, shield:this.shield, max_energy:this.max_energy, energy:this.energy, resources:this.resources,
+                energy_level:this.energy_level, shield_level:this.shield_level, weapon_level:this.weapon_level, engine_level:this.engine_level,
+                days_survived:this.days_survived, enemies_defeated:this.enemies_defeated, resources_collected:this.resources_collected, achievements:this.achievements };
+        }
+        fromDict(d) {
+            this.name = d.name; this.max_hp = d.max_hp; this.hp = d.hp; this.max_shield = d.max_shield; this.shield = d.shield;
+            this.max_energy = d.max_energy; this.energy = d.energy; this.resources = d.resources;
+            this.energy_level = d.energy_level; this.shield_level = d.shield_level; this.weapon_level = d.weapon_level; this.engine_level = d.engine_level;
+            this.days_survived = d.days_survived; this.enemies_defeated = d.enemies_defeated; this.resources_collected = d.resources_collected; this.achievements = d.achievements || [];
+        }
+        save() {
+            saveGameData(this.saveName, this.toDict());
+            logger.addLog('✓ 游戏已保存');
+        }
+        load() {
+            let d = loadGameData(this.saveName);
+            if (d) { this.fromDict(d); logger.addLog('✓ 加载成功'); return true; }
+            else { logger.addLog('✗ 加载失败'); return false; }
+        }
+    }
+
+    // ==================== 游戏状态 ====================
+    let currentPlayer = null;
+    let currentEnemy = null;
+    let inCombat = false;
+    let difficulty = 1;
+
+    // UI 元素
+    const views = { menu: 'menuView', game: 'gameView', combat: 'combatView', saveMgmt: 'saveManagementView' };
+    function showView(viewId) {
+        Object.keys(views).forEach(k => {
+            document.getElementById(views[k]).classList.remove('active-view');
+        });
+        document.getElementById(viewId).classList.add('active-view');
+    }
+
+    // 刷新游戏面板
+    function refreshGameUI() {
+        if (!currentPlayer) return;
+        const p = currentPlayer;
+        document.getElementById('gameDayDisplay').innerText = `第${p.days_survived}天 | 威胁 ${difficulty}`;
+        document.getElementById('gameStatusPanel').innerHTML = `
+            <div class="stat-item"><span class="stat-label">❤️ HP</span><span class="stat-value">${p.hp}/${p.max_hp}</span></div>
+            <div class="stat-item"><span class="stat-label">🛡️ 护盾</span><span class="stat-value">${p.shield}/${p.max_shield}</span></div>
+            <div class="stat-item"><span class="stat-label">⚡ 能源</span><span class="stat-value">${p.energy}/${p.max_energy}</span></div>
+            <div class="stat-item"><span class="stat-label">📦 资源</span><span class="stat-value">${p.resources}</span></div>
+        `;
+        document.getElementById('systemLevelsDisplay').innerHTML = `
+            <span class="system-badge">能源 Lv.${p.energy_level}</span>
+            <span class="system-badge">护盾 Lv.${p.shield_level}</span>
+            <span class="system-badge">武器 Lv.${p.weapon_level}</span>
+            <span class="system-badge">引擎 Lv.${p.engine_level}</span>
+        `;
+    }
+
+    // 开始战斗
+    function startCombat(enemy) {
+        currentEnemy = enemy;
+        inCombat = true;
+        showView(views.combat);
+        updateCombatUI();
+    }
+
+    function updateCombatUI() {
+        if (!currentPlayer || !currentEnemy) return;
+        const p = currentPlayer, e = currentEnemy;
+        document.getElementById('enemyName').innerText = e.name;
+        document.getElementById('enemyHp').innerText = e.hp;
+        document.getElementById('enemyMaxHp').innerText = e.max_hp;
+        document.getElementById('enemyShield').innerText = e.shield;
+        document.getElementById('enemyMaxShield').innerText = e.max_shield;
+        document.getElementById('enemyWeapon').innerText = e.weapon;
+        document.getElementById('playerCombatHp').innerText = p.hp;
+        document.getElementById('playerCombatMaxHp').innerText = p.max_hp;
+        document.getElementById('playerCombatShield').innerText = p.shield;
+        document.getElementById('playerCombatMaxShield').innerText = p.max_shield;
+        document.getElementById('playerCombatEnergy').innerText = p.energy;
+        document.getElementById('playerCombatMaxEnergy').innerText = p.max_energy;
+    }
+
+    function endCombat(playerWon) {
+        inCombat = false;
+        if (playerWon) {
+            // 奖励已经在战斗胜利时处理了，但需要刷新
+            currentPlayer.checkAchievements();
+            refreshGameUI();
+            showView(views.game);
+        } else {
+            // 玩家死亡，返回主菜单
+            alert('飞船被摧毁，游戏结束');
+            currentPlayer = null;
+            showView(views.menu);
+        }
+        currentEnemy = null;
+    }
+
+    // 玩家战斗行为
+    function combatAction(action) {
+        if (!inCombat || !currentPlayer || !currentEnemy) return;
+        const p = currentPlayer, e = currentEnemy;
+        if (p.is_stunned) {
+            logger.addLog('⚡ 你被麻痹，跳过回合');
+            p.is_stunned = false;
+        } else {
+            // 处理玩家行动
+            if (action === 'attack') {
+                let cost = Math.max(1, 5 - p.weapon_level);
+                if (p.energy < cost) { logger.addLog('❌ 能源不足'); return; }
+                p.energy -= cost;
+                let damage = p.attackDamage + Math.floor(Math.random()*5)-2;
+                if (Math.random() < p.critChance) { damage = Math.floor(damage * CRIT_DAMAGE_MULTIPLIER); logger.addLog('💥 暴击！'); }
+                if (e.shield > 0) {
+                    let sd = Math.min(e.shield, damage);
+                    e.shield -= sd;
+                    damage -= sd;
+                    logger.addLog(`💥 破盾 -${sd}`);
+                }
+                if (damage > 0) { e.hp -= damage; logger.addLog(`💢 造成 ${damage} 伤害`); }
+                logger.addLog(`⚡ 消耗 ${cost} 能源`);
+            } else if (action === 'defend') {
+                p.is_defending = true;
+                logger.addLog('🛡️ 防御姿态');
+            } else if (action === 'escape') {
+                let cost = 10;
+                if (p.energy < cost) { logger.addLog('❌ 能源不足无法逃跑'); return; }
+                p.energy -= cost;
+                let chance = ESCAPE_BASE_CHANCE + p.engine_level * ESCAPE_CHANCE_PER_LEVEL;
+                if (Math.random() < chance) {
+                    logger.addLog('🚀 逃跑成功');
+                    endCombat(true); // 逃跑算成功，但不算击败
+                    return;
+                } else { logger.addLog('❌ 逃跑失败'); }
+            } else if (action === 'skill') {
+                // 简化：直接显示技能菜单 (用 prompt 模拟选择)
+                let skills = [];
+                if (p.weapon_level >= 3) skills.push('1:电磁脉冲(20能)');
+                if (p.shield_level >= 3) skills.push('2:护盾过载(15能)');
+                if (p.engine_level >= 3) skills.push('3:量子跳跃(10能)');
+                if (p.energy_level >= 5) skills.push('4:核子轰炸(30能)');
+                if (skills.length === 0) { alert('无可用技能'); return; }
+                let choice = prompt('选择技能:\n' + skills.join('\n'));
+                if (choice === '1' && p.weapon_level>=3) {
+                    if (p.energy>=20) { p.energy-=20; e.is_stunned=true; logger.addLog('⚡ 电磁脉冲，敌人麻痹'); }
+                    else alert('能源不足');
+                } else if (choice === '2' && p.shield_level>=3) {
+                    if (p.energy>=15) { p.energy-=15; p.is_defending=true; logger.addLog('🛡️ 护盾过载'); }
+                    else alert('能源不足');
+                } else if (choice === '3' && p.engine_level>=3) {
+                    if (p.energy>=10) { p.energy-=10; let rec = Math.floor(p.max_energy*0.3); p.energy = Math.min(p.max_energy, p.energy+rec); logger.addLog(`⚡ 量子跳跃 +${rec}能源`); }
+                    else alert('能源不足');
+                } else if (choice === '4' && p.energy_level>=5) {
+                    if (p.energy>=30) {
+                        p.energy-=30;
+                        let dmg = p.attackDamage * 3;
+                        if (e.shield>0) { let sd = Math.min(e.shield, dmg); e.shield-=sd; dmg-=sd; logger.addLog(`💥 核子轰炸破盾 ${sd}`); }
+                        if (dmg>0) { e.hp -= dmg; logger.addLog(`💢 核子轰炸 ${dmg}`); }
+                    } else alert('能源不足');
+                } else { alert('无效选择'); return; }
+            }
+        }
+
+        // 检查敌人死亡
+        if (currentEnemy.hp <= 0) {
+            let reward = 20 + Math.floor(Math.random()*20);
+            currentPlayer.resources += reward;
+            currentPlayer.resources_collected += reward;
+            currentPlayer.enemies_defeated += 1;
+            logger.addLog(`🎉 胜利！获得 ${reward} 资源`);
+            let shieldRec = ENERGY_RECOVERY + currentPlayer.shield_level;
+            currentPlayer.shield = Math.min(currentPlayer.max_shield, currentPlayer.shield + shieldRec);
+            logger.addLog(`🛡️ 战后护盾恢复 ${shieldRec}`);
+            endCombat(true);
+            return;
+        }
+
+        // 敌人回合
+        if (inCombat && currentEnemy && currentPlayer) {
+            if (currentEnemy.is_stunned) {
+                logger.addLog(`⚡ 敌人被麻痹，跳过回合`);
+                currentEnemy.is_stunned = false;
+            } else {
+                currentEnemy.enemyTurn(currentPlayer);
+            }
+            // 护盾自动恢复
+            let shieldRec = ENERGY_RECOVERY + currentPlayer.shield_level;
+            currentPlayer.shield = Math.min(currentPlayer.max_shield, currentPlayer.shield + shieldRec);
+            logger.addLog(`🛡️ 护盾自动修复 +${shieldRec}`);
+        }
+
+        // 检查玩家死亡
+        if (currentPlayer.hp <= 0) {
+            endCombat(false);
+            return;
+        }
+
+        // 重置防御状态
+        currentPlayer.is_defending = false;
+        updateCombatUI();
+        logger.updateUI();
+    }
+
+    // ==================== 事件绑定 ====================
+    window.addEventListener('load', () => {
+        // 主菜单
+        document.getElementById('btnNewGame').addEventListener('click', ()=>{
+            let name = prompt('输入存档名(留空自动)', '');
+            let saveName = createNewSave(name);
+            currentPlayer = new Spaceship(saveName);
+            difficulty = 1;
+            refreshGameUI();
+            showView(views.game);
+            logger.addLog('新旅程开始');
+        });
+        document.getElementById('btnLoadGame').addEventListener('click', ()=>{
+            let list = getSavesList();
+            if (list.length===0) { alert('无存档'); return; }
+            let choices = list.map((s,i)=>`${i+1}: ${s.name} (天${s.days_survived})`).join('\n');
+            let idx = prompt('选择存档编号:\n'+choices);
+            if (!idx) return;
+            let n = parseInt(idx)-1;
+            if (n>=0 && n<list.length) {
+                let saveName = list[n].name;
+                let data = loadGameData(saveName);
+                if (data) {
+                    currentPlayer = new Spaceship(saveName, data);
+                    difficulty = 1 + Math.floor(currentPlayer.days_survived/5);
+                    refreshGameUI();
+                    showView(views.game);
+                    logger.addLog('加载存档成功');
+                } else alert('加载失败');
+            }
+        });
+        document.getElementById('btnManageSaves').addEventListener('click', ()=>{
+            renderSavesList();
+            showView(views.saveMgmt);
+        });
+        document.getElementById('btnExit').addEventListener('click', ()=>{
+            if (confirm('退出？')) window.close(); // 大部分浏览器不行，但聊胜于无
+        });
+
+        // 存档管理
+        document.getElementById('btnNewSave').addEventListener('click', ()=>{
+            let name = prompt('新存档名称:');
+            createNewSave(name);
+            renderSavesList();
+        });
+        document.getElementById('btnBackFromManage').addEventListener('click', ()=> showView(views.menu));
+
+        // 游戏主界面按钮
+        document.getElementById('actionExplore').addEventListener('click', ()=>{
+            if (!currentPlayer) return;
+            let encounter = currentPlayer.explore();
+            currentPlayer.days_survived++;
+            difficulty = 1 + Math.floor(currentPlayer.days_survived/5);
+            if (encounter) {
+                let enemy = new Enemy(difficulty);
+                startCombat(enemy);
+            }
+            refreshGameUI();
+            currentPlayer.checkAchievements();
+        });
+        document.getElementById('actionRepair').addEventListener('click', ()=>{
+            currentPlayer.repair(); refreshGameUI();
+        });
+        document.getElementById('actionUpgrade').addEventListener('click', ()=>{
+            let choice = prompt('升级系统: 1能源 2护盾 3武器 4引擎');
+            let map = { '1':SystemType.ENERGY, '2':SystemType.SHIELD, '3':SystemType.WEAPON, '4':SystemType.ENGINE };
+            if (map[choice]) { currentPlayer.upgrade(map[choice]); refreshGameUI(); }
+        });
+        document.getElementById('actionStatus').addEventListener('click', ()=>{
+            let msg = `成就: ${currentPlayer.achievements.join(', ')||'无'}`;
+            alert(msg);
+        });
+        document.getElementById('actionRest').addEventListener('click', ()=>{
+            let enc = currentPlayer.rest();
+            currentPlayer.days_survived++;
+            difficulty = 1 + Math.floor(currentPlayer.days_survived/5);
+            if (enc) { let enemy = new Enemy(difficulty); startCombat(enemy); }
+            refreshGameUI();
+            currentPlayer.checkAchievements();
+        });
+        document.getElementById('actionLog').addEventListener('click', ()=>{
+            alert('日志已显示在下方区域');
+        });
+        document.getElementById('actionSave').addEventListener('click', ()=>{
+            currentPlayer.save(); refreshGameUI();
+        });
+        document.getElementById('actionOpenFolder').addEventListener('click', ()=>{
+            alert('浏览器不支持打开文件夹，存档已保存在localStorage');
+        });
+        document.getElementById('actionExitToMenu').addEventListener('click', ()=>{
+            if (confirm('返回主菜单？')) { currentPlayer=null; showView(views.menu); }
+        });
+
+        // 战斗按钮
+        document.getElementById('combatAttack').addEventListener('click', ()=> combatAction('attack'));
+        document.getElementById('combatDefend').addEventListener('click', ()=> combatAction('defend'));
+        document.getElementById('combatEscape').addEventListener('click', ()=> combatAction('escape'));
+        document.getElementById('combatSkill').addEventListener('click', ()=> combatAction('skill'));
+
+        function renderSavesList() {
+            let list = getSavesList();
+            let html = '';
+            list.forEach(s => {
+                html += `<div class="save-item">
+                    <div><strong>${s.name}</strong> 天数:${s.days_survived} 击败:${s.enemies_defeated} 资源:${s.resources_collected}</div>
+                    <div class="save-actions">
+                        <button onclick="loadSaveByName('${s.name}')">加载</button>
+                        <button class="danger" onclick="deleteSaveByName('${s.name}')">删除</button>
+                        <button onclick="renameSavePrompt('${s.name}')">重命名</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('savesList').innerHTML = html || '<p>暂无存档</p>';
+        }
+        window.loadSaveByName = (name) => {
+            let data = loadGameData(name);
+            if (data) { currentPlayer = new Spaceship(name, data); difficulty = 1+Math.floor(data.days_survived/5); refreshGameUI(); showView(views.game); }
+            else alert('失败');
+        };
+        window.deleteSaveByName = (name) => {
+            if (confirm(`删除 ${name} ?`)) { deleteSave(name); renderSavesList(); }
+        };
+        window.renameSavePrompt = (oldName) => {
+            let newName = prompt('新名称', oldName);
+            if (newName && renameSave(oldName, newName)) renderSavesList();
+            else alert('重命名失败或已存在');
+        };
+    });
+})();
+</script>
+</body>
+</html>
